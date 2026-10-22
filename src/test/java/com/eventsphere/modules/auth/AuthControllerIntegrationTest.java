@@ -343,10 +343,10 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Google OAuth: Unregistered email returns 200 with isNewUser=true")
+    @DisplayName("Google OAuth: Unregistered email without name returns 200 with isNewUser=true")
     void testGoogleAuthUnregisteredEmailReturnsNewUser() throws Exception {
         when(googleTokenVerifier.verify("unregistered-token"))
-                .thenReturn(new GooglePayload("unknown.delegate@gmail.com", true, "Unknown User", null, "sub-999"));
+                .thenReturn(new GooglePayload("unknown.delegate@gmail.com", true, null, null, "sub-999"));
 
         GoogleAuthRequest request = new GoogleAuthRequest("unregistered-token");
 
@@ -355,8 +355,24 @@ class AuthControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.newUser", is(true)))
-                .andExpect(jsonPath("$.user.email", is("unknown.delegate@gmail.com")))
-                .andExpect(jsonPath("$.user.name", is("Unknown User")));
+                .andExpect(jsonPath("$.user.email", is("unknown.delegate@gmail.com")));
+    }
+
+    @Test
+    @DisplayName("Google OAuth: Unregistered email with name auto-registers and returns token")
+    void testGoogleAuthUnregisteredEmailWithAutoRegister() throws Exception {
+        when(googleTokenVerifier.verify("autoreg-token"))
+                .thenReturn(new GooglePayload("new.delegate@gmail.com", true, "New Google Delegate", null, "sub-888"));
+
+        GoogleAuthRequest request = new GoogleAuthRequest("autoreg-token");
+
+        mockMvc.perform(post("/api/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.user.email", is("new.delegate@gmail.com")))
+                .andExpect(jsonPath("$.user.name", is("New Google Delegate")));
     }
 
     @Test

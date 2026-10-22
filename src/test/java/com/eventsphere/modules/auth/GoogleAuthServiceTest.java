@@ -85,10 +85,10 @@ class GoogleAuthServiceTest {
     }
 
     @Test
-    @DisplayName("Google Auth: Returns isNewUser=true when email is not found in database")
+    @DisplayName("Google Auth: Returns isNewUser=true when email is not found in database and name is missing")
     void testGoogleAuthUnregisteredReturnsNewUser() {
         when(googleTokenVerifier.verify("unregistered-token"))
-                .thenReturn(new GooglePayload("unregistered@gmail.com", true, "Unregistered User", null, "sub-2"));
+                .thenReturn(new GooglePayload("unregistered@gmail.com", true, null, null, "sub-2"));
         when(attendeeRepository.findFirstByEmailIgnoreCase("unregistered@gmail.com"))
                 .thenReturn(Optional.empty());
 
@@ -97,7 +97,22 @@ class GoogleAuthServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.isNewUser()).isTrue();
         assertThat(response.getUser().getEmail()).isEqualTo("unregistered@gmail.com");
-        assertThat(response.getUser().getName()).isEqualTo("Unregistered User");
+    }
+
+    @Test
+    @DisplayName("Google Auth: Auto-registers when name is present in Google payload")
+    void testGoogleAuthUnregisteredWithNameAutoRegisters() {
+        when(googleTokenVerifier.verify("unregistered-token-2"))
+                .thenReturn(new GooglePayload("new.delegate@gmail.com", true, "New Delegate", null, "sub-3"));
+        when(attendeeRepository.findFirstByEmailIgnoreCase("new.delegate@gmail.com"))
+                .thenReturn(Optional.empty());
+
+        AccessResponse response = googleAuthService.authenticate(new GoogleAuthRequest("unregistered-token-2"));
+
+        assertThat(response).isNotNull();
+        assertThat(response.getToken()).isNotBlank();
+        assertThat(response.getUser().getEmail()).isEqualTo("new.delegate@gmail.com");
+        assertThat(response.getUser().getName()).isEqualTo("New Delegate");
     }
 
     @Test

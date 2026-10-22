@@ -195,8 +195,9 @@ public class EmailOtpService {
                     newAttendee.setCheckedInAt(Instant.now());
                     newAttendee.setRelevanceScore(100);
                     AttendeeEntity saved = attendeeRepository.save(newAttendee);
-                    log.info("Created new delegate attendeeId={} email={} name={}", saved.getId(), normalizedEmail, trimmedName);
-                    return saved;
+                    AttendeeEntity result = (saved != null) ? saved : newAttendee;
+                    log.info("Created new delegate attendeeId={} email={} name={}", result.getId(), normalizedEmail, trimmedName);
+                    return result;
                 });
 
         return buildAccessResponse(attendee);

@@ -7,7 +7,7 @@ spring:
     hikari:
       pool-name: EventSphereProdHikariPool
       maximum-pool-size: ${DB_POOL_SIZE:25}
-      minimum-idle: ${DB_MIN_IDLE:25}
+      minimum-idle: ${DB_MIN_IDLE:3}
       connection-timeout: 20000
       idle-timeout: 120000
       max-lifetime: 180000
