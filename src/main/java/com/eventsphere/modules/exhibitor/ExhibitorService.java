@@ -380,6 +380,7 @@ public class ExhibitorService {
         log.info("Deleted product {} for exhibitor {}", productId, exhibitorId);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "exhibitors", allEntries = true)
     public ExhibitorStatsDto updateBrochure(String exhibitorId, UpdateBrochureRequest request) {
         ExhibitorEntity exhibitor = getExhibitorOrThrow(exhibitorId);
         exhibitor.setBrochureUrl(request.getBrochureUrl());
@@ -389,6 +390,7 @@ public class ExhibitorService {
         return getStats(exhibitorId);
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "exhibitors", key = "#eventId")
     @Transactional(readOnly = true)
     public List<PublicExhibitorDto> getPublicExhibitors(String eventId) {
         List<ExhibitorEntity> list = exhibitorRepository.findAllByEventId(eventId);
