@@ -5,6 +5,7 @@ import com.eventsphere.common.error.ResourceNotFoundException;
 import com.eventsphere.modules.attendee.dto.*;
 import com.eventsphere.modules.attendee.model.AttendeeCategory;
 import com.eventsphere.modules.attendee.model.PrivacyPreset;
+import com.eventsphere.modules.attendee.model.UserRole;
 import com.eventsphere.modules.connection.ConnectionService;
 import com.eventsphere.modules.exhibitor.ExhibitorRepository;
 import com.eventsphere.modules.exhibitor.SavedExhibitorEntity;
@@ -221,13 +222,56 @@ public class AttendeeService {
         );
     }
 
+    @Transactional
     public void savePerson(String viewerId, String targetPersonId) {
         if (viewerId.equals(targetPersonId)) {
             throw new BusinessException("Cannot save your own profile");
         }
 
         if (!attendeeRepository.existsById(targetPersonId)) {
-            throw new ResourceNotFoundException("Target attendee not found: " + targetPersonId);
+            if (targetPersonId.startsWith("speaker-") || targetPersonId.startsWith("spk-")) {
+                String cleanName = targetPersonId.replaceAll("^(speaker-|spk-panel-[^-]+-|spk-)", "").replace("-", " ").trim();
+                if (cleanName.isBlank()) {
+                    cleanName = "Speaker " + targetPersonId;
+                } else {
+                    cleanName = Arrays.stream(cleanName.split("\\s+"))
+                            .map(w -> w.length() > 0 ? Character.toUpperCase(w.charAt(0)) + w.substring(1) : "")
+                            .collect(Collectors.joining(" "));
+                }
+                AttendeeEntity speakerPlaceholder = new AttendeeEntity();
+                speakerPlaceholder.setId(targetPersonId);
+                speakerPlaceholder.setEventId("MPSS26");
+                speakerPlaceholder.setRegistrationId("#SPK-" + Math.abs(targetPersonId.hashCode() % 10000));
+                speakerPlaceholder.setName(cleanName);
+                speakerPlaceholder.setEmail(targetPersonId + "@mpss2026.in");
+                speakerPlaceholder.setMobile("Not listed");
+                speakerPlaceholder.setDesignation("Featured Speaker");
+                speakerPlaceholder.setCompany("MP Semiconductor Summit 2026");
+                speakerPlaceholder.setCategory(AttendeeCategory.SPEAKER);
+                speakerPlaceholder.setAuthRole(UserRole.ROLE_DELEGATE);
+                speakerPlaceholder.setTicketType("Speaker");
+                speakerPlaceholder.setBio(cleanName + " is a featured speaker at the Madhya Pradesh Semiconductor Summit 2026.");
+                speakerPlaceholder.setAvatarUrl("");
+                speakerPlaceholder.setLinkedinUrl("");
+                speakerPlaceholder.setTwitterUrl("");
+                speakerPlaceholder.setRelevanceScore(95);
+                speakerPlaceholder.setCheckedIn(true);
+                attendeeRepository.save(speakerPlaceholder);
+
+                PrivacyConsentEntity consent = new PrivacyConsentEntity(
+                        targetPersonId,
+                        PrivacyPreset.CONNECTIONS_ONLY,
+                        false,
+                        false,
+                        true,
+                        false
+                );
+                consent.setAttendee(speakerPlaceholder);
+                privacyConsentRepository.save(consent);
+                log.info("Auto-provisioned speaker attendee record for {}", targetPersonId);
+            } else {
+                throw new ResourceNotFoundException("Target attendee not found: " + targetPersonId);
+            }
         }
 
         if (!savedPersonRepository.existsByAttendeeIdAndTargetPersonId(viewerId, targetPersonId)) {
